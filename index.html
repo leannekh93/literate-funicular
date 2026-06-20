@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Habit Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #faf5ec;
+    --paper-edge: #f0e6d6;
+    --ink: #3a342c;
+    --ink-soft: #7a7064;
+    --line: #e4d8c4;
+
+    --c1: #f5b8c4; /* ready - pink */
+    --c2: #f6dd8e; /* move - yellow */
+    --c3: #a9d8c4; /* work blocks - mint */
+    --c4: #a9cce8; /* reset - blue */
+    --c5: #cdb6e0; /* speak - lavender */
+
+    --c1-pale: #fbe3e8;
+    --c2-pale: #fbf1cd;
+    --c3-pale: #dcf0e7;
+    --c4-pale: #dcebf6;
+    --c5-pale: #ecdff4;
+  }
+
+  *{ box-sizing: border-box; }
+
+  body{
+    margin:0;
+    font-family: 'Karla', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 28px 16px 60px;
+    background-image:
+      radial-gradient(circle at 10% 5%, rgba(0,0,0,0.015) 0%, transparent 40%),
+      radial-gradient(circle at 90% 95%, rgba(0,0,0,0.02) 0%, transparent 40%);
+  }
+
+  .wrap{
+    max-width: 980px;
+    margin: 0 auto;
+    display: none;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap: 14px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(28px, 5vw, 40px);
+    margin: 0;
+    letter-spacing: -0.5px;
+  }
+  .month-row{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    font-family:'Fraunces', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--ink-soft);
+  }
+  .month-row input{
+    font-family:'Fraunces', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--ink);
+    border: none;
+    border-bottom: 1px dashed var(--ink-soft);
+    background: transparent;
+    width: 150px;
+    padding: 2px 0;
+  }
+  .month-row input:focus{ outline:none; border-bottom-color: var(--ink); }
+
+  .stat-pill{
+    font-family:'Karla',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 8px 14px;
+    border-radius: 999px;
+  }
+
+  /* ---------- Layout ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns: minmax(280px, 1fr) 320px;
+    gap: 34px;
+    align-items:start;
+  }
+  @media (max-width: 760px){
+    .grid{ grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Legend ---------- */
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap: 10px 18px;
+    margin-bottom: 22px;
+  }
+  .legend-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+  }
+  .legend-item input{
+    border:none;
+    background:transparent;
+    font-family:'Karla',sans-serif;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    width: 118px;
+    padding: 2px 0;
+    border-bottom: 1px solid transparent;
+  }
+  .legend-item input:focus{ outline:none; border-bottom-color: var(--line); color: var(--ink); }
+  .swatch{
+    width: 13px; height: 13px;
+    border-radius: 4px;
+    flex-shrink:0;
+  }
+
+  /* ---------- Wheel ---------- */
+  .wheel-card{
+    background: white;
+    border-radius: 18px;
+    padding: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 10px 30px rgba(0,0,0,0.06);
+    position:relative;
+  }
+  svg{ width:100%; height:auto; display:block; }
+  .cell{
+    cursor:pointer;
+    stroke: white;
+    stroke-width: 1;
+    transition: filter 0.15s ease, opacity 0.15s ease;
+  }
+  .cell:hover{ filter: brightness(0.93); }
+  .cell.empty{ opacity: 0.55; }
+  .daylabel{
+    font-family:'Karla',sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    fill: var(--ink-soft);
+    pointer-events:none;
+  }
+  .daylabel.today{ fill: var(--ink); }
+  .center-label{
+    font-family:'Fraunces', serif;
+    fill: var(--ink);
+    text-anchor: middle;
+    pointer-events:none;
+  }
+  .center-pct{ font-size: 30px; font-weight:600; }
+  .center-sub{ font-family:'Karla',sans-serif; font-size: 10px; letter-spacing:0.08em; text-transform:uppercase; fill: var(--ink-soft); }
+
+  /* ---------- Side panel ---------- */
+  .panel{
+    background: white;
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 10px 30px rgba(0,0,0,0.06);
+  }
+  .panel h2{
+    font-family:'Fraunces', serif;
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0 0 2px;
+  }
+  .panel .day-sub{
+    color: var(--ink-soft);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .day-stepper{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom: 18px;
+  }
+  .day-stepper button{
+    width:30px; height:30px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    background: var(--paper);
+    font-size:15px;
+    cursor:pointer;
+    color: var(--ink);
+  }
+  .day-stepper button:hover{ background: var(--paper-edge); }
+  .day-stepper .day-num{
+    font-family:'Fraunces',serif;
+    font-size:15px;
+    flex:1;
+    text-align:center;
+  }
+
+  .checklist{
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .check-row{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    cursor:pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    background: var(--paper);
+  }
+  .check-row .box{
+    width: 20px; height:20px;
+    border-radius: 7px;
+    border: 2px solid currentColor;
+    flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    color: var(--ink-soft);
+  }
+  .check-row .box svg{ width:12px;height:12px; display:none; }
+  .check-row.on .box svg{ display:block; }
+  .check-row span.label{ font-size: 13.5px; line-height:1.3; }
+  .check-row.on{ background: var(--row-pale); border-color: var(--row-color); }
+  .check-row.on .box{ background: var(--row-color); color:white; border-color: var(--row-color); }
+
+  .streaks{
+    display:flex;
+    gap: 10px;
+  }
+  .streak-box{
+    flex:1;
+    background: var(--paper);
+    border-radius: 12px;
+    padding: 12px 10px;
+    text-align:center;
+  }
+  .streak-box .n{
+    font-family:'Fraunces',serif;
+    font-size: 22px;
+    font-weight:600;
+  }
+  .streak-box .l{
+    font-size: 10.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color: var(--ink-soft);
+    margin-top:2px;
+  }
+
+  .reset-link{
+    display:block;
+    text-align:center;
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    cursor:pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+  }
+
+  .save-note{
+    text-align:center;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin-top: 18px;
+    opacity: 0.8;
+  }
+
+  .loading{
+    text-align:center;
+    padding: 60px 0;
+    color: var(--ink-soft);
+    font-family:'Fraunces',serif;
+    font-style:italic;
+  }
+
+  /* ---------- Lock screen ---------- */
+  #lockScreen{
+    position: fixed;
+    inset: 0;
+    background: var(--paper);
+    z-index: 999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 20px;
+  }
+  .lock-card{
+    background: white;
+    border-radius: 18px;
+    padding: 36px 30px;
+    max-width: 320px;
+    width:100%;
+    text-align:center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 10px 30px rgba(0,0,0,0.08);
+  }
+  .lock-card h2{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size: 22px;
+    margin: 0 0 6px;
+  }
+  .lock-card p{
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin: 0 0 18px;
+  }
+  .lock-card input{
+    width: 100%;
+    text-align:center;
+    letter-spacing: 0.3em;
+    font-size: 18px;
+    font-family:'Karla',sans-serif;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+  .lock-card input:focus{ outline:none; border-color: var(--ink-soft); }
+  .lock-card button{
+    width:100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: var(--ink);
+    color: var(--paper);
+    font-family:'Karla',sans-serif;
+    font-weight:700;
+    font-size: 13px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+  .lock-card button:hover{ opacity:0.9; }
+  .lock-error{
+    font-size: 12px;
+    color: #c0606a;
+    margin-top: 10px;
+    min-height: 14px;
+  }
+</style>
+</head>
+<body>
+<div id="lockScreen">
+  <div class="lock-card">
+    <h2>Habit Tracker</h2>
+    <p>Enter your passcode to continue</p>
+    <input type="password" id="lockInput" inputmode="numeric" autocomplete="off" placeholder="••••">
+    <button id="lockBtn">Unlock</button>
+    <div class="lock-error" id="lockError"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Habit Tracker</h1>
+      <div class="month-row">Month of <input id="monthInput" type="text" maxlength="20"></div>
+    </div>
+    <div class="stat-pill" id="overallPct">0% this month</div>
+  </header>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="grid">
+    <div class="wheel-card">
+      <div id="loading" class="loading">opening your tracker…</div>
+      <svg id="wheel" viewBox="0 0 520 520" style="display:none"></svg>
+    </div>
+
+    <div class="panel">
+      <h2>Tonight's Check‑in</h2>
+      <div class="day-sub">Tap a day below, or click straight on the wheel.</div>
+
+      <div class="day-stepper">
+        <button id="prevDay">&#8249;</button>
+        <div class="day-num" id="dayNum">Day 1</div>
+        <button id="nextDay">&#8250;</button>
+      </div>
+
+      <div class="checklist" id="checklist"></div>
+
+      <div class="streaks">
+        <div class="streak-box"><div class="n" id="streakNow">0</div><div class="l">Current streak</div></div>
+        <div class="streak-box"><div class="n" id="streakBest">0</div><div class="l">Best streak</div></div>
+      </div>
+
+      <div class="reset-link" id="resetLink">clear this month</div>
+      <div class="save-note" id="saveNote">synced</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ---------- Lock screen ---------- */
+// This is a lightweight deterrent (keeps casual visitors and search bots
+// out), not real security — anyone determined could read the page source.
+// Change PASSCODE_HASH by hashing a new code yourself, e.g. in any browser
+// console: crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourcode'))
+//   .then(b => console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+const PASSCODE_HASH = "22b65e8a4c9083bcd903095a6da776400990a58612b1e4b60ce2a6f36f689700"; // default code: "habit2026"
+const UNLOCK_KEY = "habit-tracker-unlocked";
+
+async function hashCode(text){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function showApp(){
+  document.getElementById('lockScreen').style.display = 'none';
+  document.querySelector('.wrap').style.display = 'block';
+}
+
+async function tryUnlock(){
+  const val = document.getElementById('lockInput').value;
+  const hash = await hashCode(val);
+  if(hash === PASSCODE_HASH){
+    try{ localStorage.setItem(UNLOCK_KEY, '1'); }catch(e){}
+    showApp();
+  }else{
+    document.getElementById('lockError').textContent = 'Incorrect passcode';
+    document.getElementById('lockInput').value = '';
+  }
+}
+
+document.getElementById('lockBtn').addEventListener('click', tryUnlock);
+document.getElementById('lockInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') tryUnlock();
+});
+
+if(localStorage.getItem(UNLOCK_KEY) === '1'){
+  showApp();
+}
+
+const DAYS = 30;
+const RING_COLORS = ['c1','c2','c3','c4','c5'];
+const COLOR_HEX = { c1:'#f5b8c4', c2:'#f6dd8e', c3:'#a9d8c4', c4:'#a9cce8', c5:'#cdb6e0' };
+const COLOR_PALE = { c1:'#fbe3e8', c2:'#fbf1cd', c3:'#dcf0e7', c4:'#dcebf6', c5:'#ecdff4' };
+const DEFAULT_HABITS = [
+  'Got myself ready',
+  'Moved my body',
+  'Did my work blocks',
+  'Reset my environment',
+  'Spoke'
+];
+
+const STORAGE_KEY = 'habit-tracker-v1';
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function toISODate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function parseLocalDate(str){
+  const [y,m,d] = str.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+// Day 1 of the tracker = tomorrow, so a late start doesn't throw off the count
+function defaultStartDate(){
+  const t = new Date();
+  t.setDate(t.getDate() + 1);
+  t.setHours(0,0,0,0);
+  return toISODate(t);
+}
+// Returns 1-30 if today falls within the tracker's 30-day window, else -1
+function getTodayDayNumber(){
+  if(!state.startDate) return -1;
+  const start = parseLocalDate(state.startDate);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diffDays = Math.round((today - start) / 86400000) + 1;
+  return (diffDays >= 1 && diffDays <= DAYS) ? diffDays : -1;
+}
+
+function defaultState(){
+  return {
+    month: 'Month 1',
+    startDate: defaultStartDate(),
+    habits: DEFAULT_HABITS.slice(),
+    checkins: {} // { "1": [true,false,...5], "2": [...] }
+  };
+}
+
+let state = defaultState();
+let selectedDay = 1;
+let saveTimer = null;
+
+function getDay(d){
+  if(!state.checkins[d]) state.checkins[d] = [false,false,false,false,false];
+  return state.checkins[d];
+}
+
+function scheduleSave(){
+  const note = document.getElementById('saveNote');
+  note.textContent = 'saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      note.textContent = 'saved on this device';
+    }catch(e){
+      note.textContent = 'could not save — try again';
+    }
+  }, 400);
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && parsed.habits && parsed.checkins){
+        state = parsed;
+        if(!state.startDate) state.startDate = defaultStartDate();
+      }
+    }
+  }catch(e){
+    // no saved data yet, keep defaults
+  }
+}
+
+/* ---------- geometry ---------- */
+function polar(cx, cy, r, angleDeg){
+  const a = (angleDeg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+}
+function arcPath(cx, cy, r1, r2, a1, a2){
+  const p1 = polar(cx, cy, r2, a2);
+  const p2 = polar(cx, cy, r2, a1);
+  const p3 = polar(cx, cy, r1, a1);
+  const p4 = polar(cx, cy, r1, a2);
+  const large = (a2 - a1) <= 180 ? 0 : 1;
+  return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r2} ${r2} 0 ${large} 0 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)} A ${r1} ${r1} 0 ${large} 1 ${p4.x.toFixed(2)} ${p4.y.toFixed(2)} Z`;
+}
+
+const CX = 260, CY = 260;
+const R_INNER = 64, R_OUTER = 240;
+const RING_GAP = 2.4;
+const DAY_GAP = 1.1;
+const RING_W = (R_OUTER - R_INNER) / 5;
+
+function buildWheel(){
+  const svg = document.getElementById('wheel');
+  svg.innerHTML = '';
+  const todayNum = getTodayDayNumber();
+
+  for(let d = 1; d <= DAYS; d++){
+    const a1 = (d-1) * (360/DAYS) + DAY_GAP/2;
+    const a2 = d * (360/DAYS) - DAY_GAP/2;
+    const dayState = getDay(d);
+
+    for(let ring = 0; ring < 5; ring++){
+      const r1 = R_INNER + ring * RING_W + RING_GAP/2;
+      const r2 = R_INNER + (ring+1) * RING_W - RING_GAP/2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', arcPath(CX, CY, r1, r2, a1, a2));
+      const colorKey = RING_COLORS[ring];
+      const on = dayState[ring];
+      path.setAttribute('fill', on ? COLOR_HEX[colorKey] : COLOR_PALE[colorKey]);
+      path.setAttribute('class', 'cell' + (on ? '' : ' empty'));
+      path.dataset.day = d;
+      path.dataset.ring = ring;
+      path.addEventListener('click', () => {
+        const ds = getDay(d);
+        ds[ring] = !ds[ring];
+        selectedDay = d;
+        render();
+        scheduleSave();
+      });
+      svg.appendChild(path);
+    }
+
+    // day label
+    const mid = (a1 + a2) / 2;
+    const lp = polar(CX, CY, R_OUTER + 16, mid);
+    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.setAttribute('x', lp.x.toFixed(2));
+    text.setAttribute('y', lp.y.toFixed(2));
+    text.setAttribute('class', 'daylabel' + (d === todayNum ? ' today' : ''));
+    text.setAttribute('text-anchor','middle');
+    text.setAttribute('dominant-baseline','middle');
+    text.textContent = d;
+    svg.appendChild(text);
+  }
+
+  // center label
+  const pctText = document.createElementNS('http://www.w3.org/2000/svg','text');
+  pctText.setAttribute('x', CX); pctText.setAttribute('y', CY - 4);
+  pctText.setAttribute('class','center-label center-pct');
+  svg.appendChild(pctText);
+
+  const subText = document.createElementNS('http://www.w3.org/2000/svg','text');
+  subText.setAttribute('x', CX); subText.setAttribute('y', CY + 16);
+  subText.setAttribute('class','center-label center-sub');
+  subText.textContent = 'complete';
+  svg.appendChild(subText);
+
+  document.getElementById('loading').style.display = 'none';
+  svg.style.display = 'block';
+}
+
+function updateWheelFills(){
+  const svg = document.getElementById('wheel');
+  svg.querySelectorAll('.cell').forEach(path => {
+    const d = path.dataset.day, ring = +path.dataset.ring;
+    const on = getDay(d)[ring];
+    const colorKey = RING_COLORS[ring];
+    path.setAttribute('fill', on ? COLOR_HEX[colorKey] : COLOR_PALE[colorKey]);
+    path.classList.toggle('empty', !on);
+  });
+
+  // stats
+  let totalDone = 0, totalPossible = 0;
+  for(let d=1; d<=DAYS; d++){
+    const ds = getDay(d);
+    totalDone += ds.filter(Boolean).length;
+    totalPossible += 5;
+  }
+  const pct = totalPossible ? Math.round((totalDone/totalPossible)*100) : 0;
+  document.getElementById('overallPct').textContent = pct + '% this month';
+  const pctEl = svg.querySelector('.center-pct');
+  if(pctEl) pctEl.textContent = pct + '%';
+
+  // streaks: a day counts as "complete" if all 5 habits are checked
+  let best = 0, run = 0;
+  for(let d=1; d<=DAYS; d++){
+    const full = getDay(d).every(Boolean);
+    if(full){ run++; best = Math.max(best, run); } else { run = 0; }
+  }
+
+  // current streak: walk backward from the most recent day that has any
+  // activity, counting consecutive fully-complete days
+  let lastActive = 0;
+  for(let d=DAYS; d>=1; d--){
+    if(getDay(d).some(Boolean)){ lastActive = d; break; }
+  }
+  let current = 0;
+  for(let d=lastActive; d>=1; d--){
+    if(getDay(d).every(Boolean)) current++;
+    else break;
+  }
+
+  document.getElementById('streakNow').textContent = current;
+  document.getElementById('streakBest').textContent = best;
+}
+
+/* ---------- legend ---------- */
+function buildLegend(){
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  state.habits.forEach((h, i) => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.style.background = COLOR_HEX[RING_COLORS[i]];
+    const input = document.createElement('input');
+    input.value = h;
+    input.addEventListener('input', () => {
+      state.habits[i] = input.value;
+      buildChecklist();
+      scheduleSave();
+    });
+    item.appendChild(sw);
+    item.appendChild(input);
+    legend.appendChild(item);
+  });
+}
+
+/* ---------- checklist panel ---------- */
+const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+function buildChecklist(){
+  const wrap = document.getElementById('checklist');
+  wrap.innerHTML = '';
+  const ds = getDay(selectedDay);
+  state.habits.forEach((h, i) => {
+    const row = document.createElement('div');
+    const on = ds[i];
+    row.className = 'check-row' + (on ? ' on' : '');
+    row.style.setProperty('--row-color', COLOR_HEX[RING_COLORS[i]]);
+    row.style.setProperty('--row-pale', COLOR_PALE[RING_COLORS[i]]);
+    row.innerHTML = `<div class="box">${CHECK_ICON}</div><span class="label">${h}</span>`;
+    row.addEventListener('click', () => {
+      ds[i] = !ds[i];
+      render();
+      scheduleSave();
+    });
+    wrap.appendChild(row);
+  });
+  document.getElementById('dayNum').textContent = 'Day ' + selectedDay;
+}
+
+/* ---------- top-level render ---------- */
+function render(){
+  buildChecklist();
+  updateWheelFills();
+}
+
+document.getElementById('prevDay').addEventListener('click', () => {
+  selectedDay = selectedDay > 1 ? selectedDay - 1 : DAYS;
+  render();
+});
+document.getElementById('nextDay').addEventListener('click', () => {
+  selectedDay = selectedDay < DAYS ? selectedDay + 1 : 1;
+  render();
+});
+
+document.getElementById('monthInput').addEventListener('input', (e) => {
+  state.month = e.target.value;
+  buildWheel();
+  render();
+  scheduleSave();
+});
+
+document.getElementById('resetLink').addEventListener('click', () => {
+  if(confirm('Clear all check-ins for this month? This cannot be undone.')){
+    state.checkins = {};
+    render();
+    scheduleSave();
+  }
+});
+
+(function init(){
+  loadState();
+  const t = getTodayDayNumber();
+  selectedDay = (t >= 1 && t <= DAYS) ? t : 1;
+  document.getElementById('monthInput').value = state.month;
+  buildLegend();
+  buildWheel();
+  render();
+})();
+</script>
+</body>
+</html>
