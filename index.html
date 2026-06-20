@@ -252,6 +252,33 @@
     display:flex;
     gap: 10px;
   }
+
+  .notes-section{
+    margin-bottom: 18px;
+  }
+  .notes-section label{
+    display:block;
+    font-size: 11.5px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .notes-section textarea{
+    width:100%;
+    min-height: 72px;
+    resize: vertical;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    font-family:'Karla',sans-serif;
+    font-size: 13.5px;
+    line-height: 1.5;
+    padding: 10px 12px;
+  }
+  .notes-section textarea:focus{ outline:none; border-color: var(--ink-soft); }
+  .notes-section textarea::placeholder{ color: #b3a896; }
   .streak-box{
     flex:1;
     background: var(--paper);
@@ -282,6 +309,24 @@
     text-decoration: underline;
     text-decoration-style: dotted;
   }
+
+  .export-btn{
+    display:block;
+    width:100%;
+    padding: 11px;
+    border-radius: 10px;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    font-family:'Karla',sans-serif;
+    font-weight:700;
+    font-size: 12px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    cursor:pointer;
+    margin-top: 6px;
+  }
+  .export-btn:hover{ background: var(--paper-edge); }
 
   .save-note{
     text-align:center;
@@ -408,11 +453,17 @@
 
       <div class="checklist" id="checklist"></div>
 
+      <div class="notes-section">
+        <label for="notesArea">A little note</label>
+        <textarea id="notesArea" placeholder="Anything about today worth remembering..."></textarea>
+      </div>
+
       <div class="streaks">
         <div class="streak-box"><div class="n" id="streakNow">0</div><div class="l">Current streak</div></div>
         <div class="streak-box"><div class="n" id="streakBest">0</div><div class="l">Best streak</div></div>
       </div>
 
+      <button class="export-btn" id="exportBtn">Export this month (.csv)</button>
       <div class="reset-link" id="resetLink">clear this month</div>
       <div class="save-note" id="saveNote">synced</div>
     </div>
@@ -503,7 +554,8 @@ function defaultState(){
     month: 'Month 1',
     startDate: defaultStartDate(),
     habits: DEFAULT_HABITS.slice(),
-    checkins: {} // { "1": [true,false,...5], "2": [...] }
+    checkins: {}, // { "1": [true,false,...5], "2": [...] }
+    notes: {}     // { "1": "free text", "2": "..." }
   };
 }
 
@@ -514,6 +566,11 @@ let saveTimer = null;
 function getDay(d){
   if(!state.checkins[d]) state.checkins[d] = [false,false,false,false,false];
   return state.checkins[d];
+}
+
+function getNote(d){
+  if(!state.notes) state.notes = {};
+  return state.notes[d] || '';
 }
 
 function scheduleSave(){
@@ -538,6 +595,7 @@ function loadState(){
       if(parsed && parsed.habits && parsed.checkins){
         state = parsed;
         if(!state.startDate) state.startDate = defaultStartDate();
+        if(!state.notes) state.notes = {};
       }
     }
   }catch(e){
@@ -715,6 +773,7 @@ function buildChecklist(){
     wrap.appendChild(row);
   });
   document.getElementById('dayNum').textContent = 'Day ' + selectedDay;
+  document.getElementById('notesArea').value = getNote(selectedDay);
 }
 
 /* ---------- top-level render ---------- */
@@ -732,6 +791,12 @@ document.getElementById('nextDay').addEventListener('click', () => {
   render();
 });
 
+document.getElementById('notesArea').addEventListener('input', (e) => {
+  if(!state.notes) state.notes = {};
+  state.notes[selectedDay] = e.target.value;
+  scheduleSave();
+});
+
 document.getElementById('monthInput').addEventListener('input', (e) => {
   state.month = e.target.value;
   buildWheel();
@@ -739,9 +804,55 @@ document.getElementById('monthInput').addEventListener('input', (e) => {
   scheduleSave();
 });
 
+function csvEscape(field){
+  const s = String(field ?? '');
+  if(/[",\n]/.test(s)){
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function dateForDay(d){
+  if(!state.startDate) return '';
+  const start = parseLocalDate(state.startDate);
+  const dt = new Date(start);
+  dt.setDate(dt.getDate() + (d - 1));
+  return toISODate(dt);
+}
+
+function exportCSV(){
+  const rows = [];
+  rows.push(['Day', 'Date', ...state.habits, 'Completion', 'Notes']);
+  for(let d = 1; d <= DAYS; d++){
+    const ds = getDay(d);
+    const doneCount = ds.filter(Boolean).length;
+    rows.push([
+      d,
+      dateForDay(d),
+      ...ds.map(v => v ? 'Yes' : 'No'),
+      `${doneCount}/5`,
+      getNote(d)
+    ]);
+  }
+  const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeMonth = (state.month || 'habit-tracker').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  a.href = url;
+  a.download = `${safeMonth}-habit-tracker.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('exportBtn').addEventListener('click', exportCSV);
+
 document.getElementById('resetLink').addEventListener('click', () => {
-  if(confirm('Clear all check-ins for this month? This cannot be undone.')){
+  if(confirm('Clear all check-ins and notes for this month? This cannot be undone.')){
     state.checkins = {};
+    state.notes = {};
     render();
     scheduleSave();
   }
